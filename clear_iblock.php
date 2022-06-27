@@ -1,7 +1,7 @@
 <?
 global $USER;
 if (!$USER->IsAdmin()) {
-    echo "Не достаточно прав";
+    echo "Не хватает прав";
 
     return;
 }
@@ -9,13 +9,13 @@ $time_start = microtime(true);
 echo '';
 define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
-$deleteFiles = 'yes'; // Удалять ли найденые файлы yes/no
-$saveBackup  = 'yes'; // Создаст бэкап файла yes/no
-//Папка для бэкапа
+$deleteFiles = 'yes'; //Удалять ли найденые файлы yes/no
+$saveBackup  = 'yes'; //Создаст бэкап файла yes/no
+// Папка для бэкапа
 $patchBackup = $_SERVER['DOCUMENT_ROOT'] . "/upload/iblock_backup/";
-//Целевая папка для поиска файлов
+// Целевая папка для поиска файлов
 $rootDirPath = $_SERVER['DOCUMENT_ROOT'] . "/upload/iblock";
-//Создание папки для бэкапа
+// Создание папки для бэкапа
 if (!file_exists($patchBackup)) {
     CheckDirPath($patchBackup);
 }
@@ -31,6 +31,7 @@ $contDir    = 0;
 $countFile  = 0;
 $i          = 1;
 $removeFile = 0;
+$countSymlink = 0;
 while (false !== ($subDirName = readdir($hRootDir))) {
     if ($subDirName == '.' || $subDirName == '..') {
         continue;
@@ -52,7 +53,7 @@ while (false !== ($subDirName = readdir($hRootDir))) {
         $backTrue = false; // Для создание бэкапа
         if ($deleteFiles === 'yes') {
             if (!file_exists($patchBackup . $subDirName)) {
-                if (CheckDirPath($patchBackup . $subDirName . '/')) { // Создать поддиректорию
+                if (CheckDirPath($patchBackup . $subDirName . '/')) { // Создал поддиректорию
                     $backTrue = true;
                 }
             } else {
@@ -60,19 +61,24 @@ while (false !== ($subDirName = readdir($hRootDir))) {
             }
             if ($backTrue) {
                 if ($saveBackup === 'yes') {
-                    CopyDirFiles($fullPath, $patchBackup . $subDirName . '/' . $fileName); // Копия в backup
+                    CopyDirFiles($fullPath, $patchBackup . $subDirName . '/' . $fileName); // Копия в бэкап
                 }
             }
-            // Удаление файла
-            if (unlink($fullPath)) {
-                $removeFile++;
-                echo "Удалил: " . $fullPath . '
-';
-            }
+            
+            // Символические ссылки не трогаем
+            if (!is_link($fullPath)) {
+            	// Удаление файла
+	            if (unlink($fullPath)) {
+	                $removeFile++;
+	                echo "Удалил: " . $fullPath . '';
+	            }
+	        }
+	        else {
+	        	$countSymlink++;
+	        }
         } else {
             $filesCount++;
-            echo 'Кандидат на удаление - ' . $i . ') ' . $fullPath . '
-';
+            echo 'Кандидат на удаление - ' . $i . ') ' . $fullPath . '';
         }
         $i++;
         $count++;
@@ -93,14 +99,11 @@ if ($saveBackup === 'yes') {
     echo 'Бэкап файлов поместил в: ' . $patchBackup . '
 ';
 }
-echo '
-Всего файлов удалил: ' . $removeFile . '';
-echo '
-Всего файлов в ' . $rootDirPath . ': ' . $countFile . '';
-echo '
-Всего подкаталогов в ' . $rootDirPath . ': ' . $contDir . '';
-echo '
-Всего записей в b_file: ' . count($arFilesCache) . '';
+echo 'Всего файлов удалил: ' . $removeFile . '';
+echo 'Всего файлов в ' . $rootDirPath . ': ' . $countFile . '';
+echo 'Всего подкаталогов в ' . $rootDirPath . ': ' . $contDir . '';
+echo 'Всего записей в b_file: ' . count($arFilesCache) . '';
+echo 'Всего Symlink, которые не были удалены: ' . $countSymlink . '';
 closedir($hRootDir);
 echo '';
 $time_end = microtime(true);
